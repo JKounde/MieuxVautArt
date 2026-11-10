@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo ART42 — le collectionneur en réalité augmentée</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #f5f5f5; }
+  #setup { max-width: 560px; margin: 0 auto; padding: 24px 18px 40px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h1 span { color: #ff3d7f; }
+  p.sub { color: #aaa; margin: 0 0 24px; }
+  .step { background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .step h2 { font-size: 1rem; margin: 0 0 8px; }
+  .step small { color: #999; display: block; margin-bottom: 10px; }
+  input[type=file] { width: 100%; color: #ccc; }
+  label.check { display: flex; gap: 8px; align-items: center; margin-top: 10px; color: #ccc; }
+  img.preview, video.preview { max-width: 100%; max-height: 180px; margin-top: 10px; border-radius: 8px; display: none; }
+  button { width: 100%; padding: 14px; border: 0; border-radius: 12px; font-size: 1rem; font-weight: 700;
+           background: #ff3d7f; color: #fff; cursor: pointer; }
+  button:disabled { background: #444; color: #888; cursor: not-allowed; }
+  #status { margin-top: 12px; color: #ffd166; min-height: 1.2em; }
+  #ar { position: fixed; inset: 0; display: none; }
+  #stop { position: fixed; top: 12px; right: 12px; z-index: 10; width: auto; padding: 10px 14px; display: none; }
+  #hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 10; background: rgba(0,0,0,.65);
+          padding: 8px 14px; border-radius: 20px; font-size: .9rem; display: none; }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>ART42 <span>× RA</span></h1>
+  <p class="sub">On vise l'œuvre → le collectionneur apparaît et l'explique.</p>
+
+  <div class="step">
+    <h2>1. La photo de l'œuvre (la « cible »)</h2>
+    <small>Une photo bien nette, avec beaucoup de détails et de contrastes.</small>
+    <input type="file" id="imgInput" accept="image/*">
+    <img id="imgPreview" class="preview" alt="aperçu de l'œuvre">
+  </div>
+
+  <div class="step">
+    <h2>2. La vidéo du collectionneur</h2>
+    <small>Facultatif pour tester : sans vidéo, un panneau de démo s'affiche à la place.</small>
+    <input type="file" id="vidInput" accept="video/*">
+    <video id="vidPreview" class="preview" muted playsinline></video>
+    <label class="check"><input type="checkbox" id="greenScreen"> Vidéo tournée sur fond vert (on l'efface)</label>
+  </div>
+
+  <button id="startBtn" disabled>3. Lancer la réalité augmentée</button>
+  <div id="status"></div>
+</div>
+
+<div id="ar"></div>
+<button id="stop">✕ Quitter</button>
+<div id="hint">Vise l'œuvre avec la caméra 👀</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+import { Compiler } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+
+const $ = (id) => document.getElementById(id);
+const status = (msg) => { $('status').textContent = msg; };
+
+let targetImage = null;   // l'image de l'œuvre
+let videoEl = null;       // la vidéo du collectionneur
+let mindarThree = null;
+
+// --- Étape 1 : on charge la photo de l'œuvre ---
+$('imgInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  $('imgPreview').src = url;                 // l'aperçu (petit)
+  $('imgPreview').style.display = 'block';
+  const img = new Image();                   // l'image en taille réelle pour MindAR
+  img.onload = () => { targetImage = img; $('startBtn').disabled = false; status(''); };
+  img.src = url;
+});
+
+// --- Étape 2 : on charge la vidéo ---
+$('vidInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const v = $('vidPreview');
+  v.src = URL.createObjectURL(file);
+  v.style.display = 'block';
+  videoEl = v;
+});
+
+// Panneau de démo (si pas de vidéo) : un canvas dessiné à la main
+function makeDemoTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 720;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ff3d7f'; ctx.fillRect(0, 0, 512, 720);
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(256, 230, 110, 0, Math.PI * 2); ctx.fill();       // tête
+  ctx.fillRect(116, 360, 280, 260);                                           // corps
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold 40px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('Le collectionneur', 256, 80);
+  ctx.font = '28px system-ui';
+  ctx.fillText('(ta vidéo ici)', 256, 680);
+  return new THREE.CanvasTexture(c);
+}
+
+// Shader « fond vert » : on rend transparents les pixels verts
+function makeChromaMaterial(texture) {
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: texture }, keyColor: { value: new THREE.Color(0x00ff00) } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform sampler2D map; uniform vec3 keyColor; varying vec2 vUv;
+      void main(){
+        vec4 c = texture2D(map, vUv);
+        float d = distance(c.rgb, keyColor);
+        float alpha = smoothstep(0.35, 0.55, d);
+        gl_FragColor = vec4(c.rgb, alpha);
+      }`,
+    transparent: true
+  });
+}
+
+// --- Étape 3 : on lance la RA ---
+$('startBtn').addEventListener('click', async () => {
+  $('startBtn').disabled = true;
+  try {
+    // 3a. MindAR "apprend" l'image de l'œuvre (compilation de la cible)
+    status('Analyse de l\'œuvre… 0 %');
+    const compiler = new Compiler();
+    await compiler.compileImageTargets([targetImage], (p) => status(`Analyse de l'œuvre… ${Math.round(p)} %`));
+    const data = await compiler.exportData();
+    const targetUrl = URL.createObjectURL(new Blob([data]));
+
+    // 3b. On prépare la scène RA
+    status('Ouverture de la caméra…');
+    $('setup').style.display = 'none';
+    $('ar').style.display = 'block';
+    $('stop').style.display = 'block';
+    $('hint').style.display = 'block';
+
+    mindarThree = new MindARThree({ container: $('ar'), imageTargetSrc: targetUrl });
+    const { renderer, scene, camera } = mindarThree;
+
+    // 3c. Le "plan" où s'affiche le collectionneur
+    let texture, ratio;
+    if (videoEl) {
+      videoEl.loop = true;
+      videoEl.muted = false;
+      texture = new THREE.VideoTexture(videoEl);
+      ratio = (videoEl.videoHeight || 16) / (videoEl.videoWidth || 9);
+    } else {
+      texture = makeDemoTexture();
+      ratio = 720 / 512;
+    }
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = $('greenScreen').checked
+      ? makeChromaMaterial(texture)
+      : new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+
+    const width = 0.6;                                    // 1 = largeur de l'œuvre
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, width * ratio), material);
+    plane.position.set(0.55, 0, 0.05);                    // à droite de l'œuvre, un peu devant
+
+    // 3d. On "accroche" le plan à l'œuvre (anchor 0 = notre seule cible)
+    const anchor = mindarThree.addAnchor(0);
+    anchor.group.add(plane);
+    anchor.onTargetFound = () => { $('hint').style.display = 'none'; if (videoEl) videoEl.play(); };
+    anchor.onTargetLost  = () => { $('hint').style.display = 'block'; if (videoEl) videoEl.pause(); };
+
+    await mindarThree.start();
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+  } catch (err) {
+    console.error(err);
+    stopAR();
+    status('Oups : ' + (err.message || err) + ' — vérifie que la page est ouverte en localhost ou en https, et que la caméra est autorisée.');
+  }
+});
+
+function stopAR() {
+  if (mindarThree) {
+    mindarThree.renderer.setAnimationLoop(null);
+    mindarThree.stop();
+    mindarThree = null;
+  }
+  if (videoEl) videoEl.pause();
+  $('ar').innerHTML = '';
+  $('ar').style.display = 'none';
+  $('stop').style.display = 'none';
+  $('hint').style.display = 'none';
+  $('setup').style.display = 'block';
+  $('startBtn').disabled = !targetImage;
+}
+$('stop').addEventListener('click', () => { stopAR(); status(''); });
+</script>
+</body>
+</html>
