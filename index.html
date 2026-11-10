@@ -236,8 +236,11 @@
           texture.colorSpace = THREE.SRGBColorSpace;
           const material = oeuvre.fondVert ? makeChromaMaterial(texture)
             : new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-          const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6 * 16 / 9), material);
-          plane.position.set(0.55, 0, 0.05);
+          // const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6 * 16 / 9), material);
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2 * 16 / 9), material);
+          // plane.position.set(0.55, 0, 0.05);
+          plane.position.set(0.85, 0, 0.05);
+//                  ↑ plus grand = plus à droite
           // on ajuste la forme quand on connaît la taille réelle de la vidéo
 
           const ajusterForme = () => {
