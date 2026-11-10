@@ -1,43 +1,125 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MieuxVautArt — les œuvres prennent la parole</title>
-<style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #f5f5f5; }
-  #intro { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-           padding: 24px; text-align: center; }
-  h1 { font-size: 1.8rem; margin: 0 0 6px; }
-  h1 span { color: #ff3d7f; }
-  p { color: #aaa; max-width: 340px; }
-  button { padding: 16px 26px; border: 0; border-radius: 14px; font-size: 1.1rem; font-weight: 700;
-           background: #ff3d7f; color: #fff; cursor: pointer; }
-  button:disabled { background: #444; color: #888; }
-  #status { margin-top: 14px; color: #ffd166; min-height: 1.2em; }
-  #ar { position: fixed; inset: 0; display: none; }
-  #stop { position: fixed; top: 12px; right: 12px; z-index: 10; padding: 10px 14px; font-size: .95rem; display: none; }
-  #soundBtn { position: fixed; top: 12px; left: 12px; z-index: 10; padding: 10px 14px; font-size: .95rem; display: none; }
-  #hint { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 10; background: rgba(0,0,0,.65);
-          padding: 8px 14px; border-radius: 20px; font-size: .95rem; display: none; white-space: nowrap; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MieuxVautArt — les œuvres prennent la parole</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+    }
+
+    #intro {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 6px;
+    }
+
+    h1 span {
+      color: #ff3d7f;
+    }
+
+    p {
+      color: #aaa;
+      max-width: 340px;
+    }
+
+    button {
+      padding: 16px 26px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: #ff3d7f;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #444;
+      color: #888;
+    }
+
+    #status {
+      margin-top: 14px;
+      color: #ffd166;
+      min-height: 1.2em;
+    }
+
+    #ar {
+      position: fixed;
+      inset: 0;
+      display: none;
+    }
+
+    #stop {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      padding: 10px 14px;
+      font-size: .95rem;
+      display: none;
+    }
+
+    #soundBtn {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      padding: 10px 14px;
+      font-size: .95rem;
+      display: none;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(0, 0, 0, .65);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: .95rem;
+      display: none;
+      white-space: nowrap;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="intro">
-  <h1>MieuxVaut<span>Art</span></h1>
-  <p>Vise une œuvre avec ton téléphone : son guide apparaît pour te la raconter 🎨</p>
-  <button id="startBtn">▶ Commencer la visite</button>
-  <div id="status"></div>
-</div>
+  <div id="intro">
+    <h1>MieuxVaut<span>Art</span></h1>
+    <p>Vise une œuvre avec ton téléphone : son guide apparaît pour te la raconter 🎨</p>
+    <button id="startBtn">▶ Commencer la visite</button>
+    <div id="status"></div>
+  </div>
 
-<div id="ar"></div>
-<button id="stop">✕ Quitter</button>
-<button id="soundBtn">🔊 Activer le son</button>
-<div id="hint">Vise une œuvre avec la caméra 👀</div>
+  <div id="ar"></div>
+  <button id="stop">✕ Quitter</button>
+  <button id="soundBtn">🔊 Activer le son</button>
+  <div id="hint">Vise une œuvre avec la caméra 👀</div>
 
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -47,158 +129,169 @@
 }
 </script>
 
-<script type="module">
-import * as THREE from 'three';
-import { MindARThree } from 'mindar-image-three';
-import { Compiler } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+  <script type="module">
+    import * as THREE from 'three';
+    import { MindARThree } from 'mindar-image-three';
+    import { Compiler } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
 
-// ⚙️ LA LISTE DES ŒUVRES : pour en ajouter une, on ajoute une ligne !
-const OEUVRES = [
-  { image: 'oeuvre2.jpg', video: 'green.mp4', fondVert: true },
-];
+    // ⚙️ LA LISTE DES ŒUVRES : pour en ajouter une, on ajoute une ligne !
+    const OEUVRES = [
+      { image: 'oeuvre2.jpg', video: 'green.mp4', fondVert: true },
+    ];
 
-const $ = (id) => document.getElementById(id);
-const status = (msg) => { $('status').textContent = msg; };
-let mindarThree = null;
-let videos = [];            // une balise <video> par œuvre
-let currentVideo = null;    // la vidéo en train de jouer
+    const $ = (id) => document.getElementById(id);
+    const status = (msg) => { $('status').textContent = msg; };
+    let mindarThree = null;
+    let videos = [];            // une balise <video> par œuvre
+    let currentVideo = null;    // la vidéo en train de jouer
 
-// function loadImage(src) {
-//   return new Promise((resolve, reject) => {
-//     const img = new Image();
-//     img.onload = () => resolve(img);
-//     img.onerror = () => reject(new Error(`Image introuvable : ${src}`));
-//     img.src = src;
-//   });
-// }
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // On réduit l'image à 1000 px max (sinon le mobile manque de mémoire)
-      const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas);
-    };
-    img.onerror = () => reject(new Error(`Image introuvable : ${src}`));
-    img.src = src;
-  });
-}
+    // function loadImage(src) {
+    //   return new Promise((resolve, reject) => {
+    //     const img = new Image();
+    //     img.onload = () => resolve(img);
+    //     img.onerror = () => reject(new Error(`Image introuvable : ${src}`));
+    //     img.src = src;
+    //   });
+    // }
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // On réduit l'image à 1000 px max (sinon le mobile manque de mémoire)
+          const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas);
+        };
+        img.onerror = () => reject(new Error(`Image introuvable : ${src}`));
+        img.src = src;
+      });
+    }
 
-function makeVideo(src) {
-  const v = document.createElement('video');
-  v.src = src;
-  v.loop = true;
-  v.playsInline = true;
-  v.preload = 'auto';
-  v.crossOrigin = 'anonymous';
-  return v;
-}
+    function makeVideo(src) {
+      const v = document.createElement('video');
+      v.src = src;
+      v.loop = true;
+      v.playsInline = true;
+      v.preload = 'auto';
+      v.crossOrigin = 'anonymous';
+      return v;
+    }
 
-function makeChromaMaterial(texture) {
-  return new THREE.ShaderMaterial({
-    uniforms: { map: { value: texture }, keyColor: { value: new THREE.Color(0x00ff00) } },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: `
-      uniform sampler2D map; uniform vec3 keyColor; varying vec2 vUv;
+    function makeChromaMaterial(texture) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          map: { value: texture },
+          keyColor: { value: new THREE.Color(0x00ff00) },
+          crop: { value: 0.05 }          // on coupe 5 % de chaque côté
+        },
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        fragmentShader: `
+      uniform sampler2D map; uniform vec3 keyColor; uniform float crop; varying vec2 vUv;
       void main(){
+        // 1. On coupe les bandes noires sur les côtés
+        if (vUv.x < crop || vUv.x > 1.0 - crop) discard;
+        // 2. On efface le vert
         vec4 c = texture2D(map, vUv);
         float alpha = smoothstep(0.35, 0.55, distance(c.rgb, keyColor));
         gl_FragColor = vec4(c.rgb, alpha);
       }`,
-    transparent: true
-  });
-}
-
-$('startBtn').addEventListener('click', async () => {
-  $('startBtn').disabled = true;
-
-  // 1. On crée les vidéos et on débloque leur son pendant le "tap"
-  videos = OEUVRES.map((o) => makeVideo(o.video));
-  for (const v of videos) {
-    try { await v.play(); v.pause(); v.currentTime = 0; } catch (e) { console.warn(e); }
-  }
-
-  try {
-    // 2. MindAR apprend toutes les œuvres
-    status('Préparation… 0 %');
-    const images = await Promise.all(OEUVRES.map((o) => loadImage(o.image)));
-    const compiler = new Compiler();
-    await compiler.compileImageTargets(images, (p) => status(`Préparation… ${Math.round(p)} %`));
-    const targetUrl = URL.createObjectURL(new Blob([await compiler.exportData()]));
-
-    // 3. On ouvre la caméra
-    status('Ouverture de la caméra…');
-    $('intro').style.display = 'none';
-    $('ar').style.display = 'block';
-    $('stop').style.display = 'block';
-    $('hint').style.display = 'block';
-
-    mindarThree = new MindARThree({ container: $('ar'), imageTargetSrc: targetUrl, maxTrack: 1 });
-    const { renderer, scene, camera } = mindarThree;
-
-    // 4. Pour chaque œuvre : son guide, accroché à sa droite
-    OEUVRES.forEach((oeuvre, i) => {
-      const v = videos[i];
-      const texture = new THREE.VideoTexture(v);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const material = oeuvre.fondVert ? makeChromaMaterial(texture)
-                                       : new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6 * 16 / 9), material);
-      plane.position.set(0.55, 0, 0.05);
-      // on ajuste la forme quand on connaît la taille réelle de la vidéo
-      v.addEventListener('loadedmetadata', () => {
-        plane.scale.y = (v.videoHeight / v.videoWidth) / (16 / 9);
+        transparent: true
       });
+    }
 
-      const anchor = mindarThree.addAnchor(i);   // i = numéro de l'œuvre
-      anchor.group.add(plane);
-      anchor.onTargetFound = () => {
-        $('hint').style.display = 'none';
-        if (currentVideo && currentVideo !== v) currentVideo.pause();   // un seul guide parle à la fois
-        currentVideo = v;
-        v.muted = false;
-        v.play().catch(() => {
-          v.muted = true;
-          v.play();
-          $('soundBtn').style.display = 'block';
+    $('startBtn').addEventListener('click', async () => {
+      $('startBtn').disabled = true;
+
+      // 1. On crée les vidéos et on débloque leur son pendant le "tap"
+      videos = OEUVRES.map((o) => makeVideo(o.video));
+      for (const v of videos) {
+        try { await v.play(); v.pause(); v.currentTime = 0; } catch (e) { console.warn(e); }
+      }
+
+      try {
+        // 2. MindAR apprend toutes les œuvres
+        status('Préparation… 0 %');
+        const images = await Promise.all(OEUVRES.map((o) => loadImage(o.image)));
+        const compiler = new Compiler();
+        await compiler.compileImageTargets(images, (p) => status(`Préparation… ${Math.round(p)} %`));
+        const targetUrl = URL.createObjectURL(new Blob([await compiler.exportData()]));
+
+        // 3. On ouvre la caméra
+        status('Ouverture de la caméra…');
+        $('intro').style.display = 'none';
+        $('ar').style.display = 'block';
+        $('stop').style.display = 'block';
+        $('hint').style.display = 'block';
+
+        mindarThree = new MindARThree({ container: $('ar'), imageTargetSrc: targetUrl, maxTrack: 1 });
+        const { renderer, scene, camera } = mindarThree;
+
+        // 4. Pour chaque œuvre : son guide, accroché à sa droite
+        OEUVRES.forEach((oeuvre, i) => {
+          const v = videos[i];
+          const texture = new THREE.VideoTexture(v);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          const material = oeuvre.fondVert ? makeChromaMaterial(texture)
+            : new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6 * 16 / 9), material);
+          plane.position.set(0.55, 0, 0.05);
+          // on ajuste la forme quand on connaît la taille réelle de la vidéo
+
+          const ajusterForme = () => {
+            if (v.videoWidth) plane.scale.y = (v.videoHeight / v.videoWidth) / (16 / 9);
+          };
+          ajusterForme();                                   // si la vidéo est déjà chargée
+          v.addEventListener('loadedmetadata', ajusterForme); // sinon, dès qu'elle l'est
+
+          const anchor = mindarThree.addAnchor(i);   // i = numéro de l'œuvre
+          anchor.group.add(plane);
+          anchor.onTargetFound = () => {
+            $('hint').style.display = 'none';
+            if (currentVideo && currentVideo !== v) currentVideo.pause();   // un seul guide parle à la fois
+            currentVideo = v;
+            v.muted = false;
+            v.play().catch(() => {
+              v.muted = true;
+              v.play();
+              $('soundBtn').style.display = 'block';
+            });
+          };
+          anchor.onTargetLost = () => { $('hint').style.display = 'block'; v.pause(); };
         });
-      };
-      anchor.onTargetLost = () => { $('hint').style.display = 'block'; v.pause(); };
+
+        await mindarThree.start();
+        renderer.setAnimationLoop(() => renderer.render(scene, camera));
+      } catch (err) {
+        console.error(err);
+        stopAR();
+        status('Oups : ' + (err.message || err));
+      }
     });
 
-    await mindarThree.start();
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
-  } catch (err) {
-    console.error(err);
-    stopAR();
-    status('Oups : ' + (err.message || err));
-  }
-});
-
-function stopAR() {
-  if (mindarThree) {
-    mindarThree.renderer.setAnimationLoop(null);
-    mindarThree.stop();
-    mindarThree = null;
-  }
-  videos.forEach((v) => v.pause());
-  currentVideo = null;
-  $('ar').innerHTML = '';
-  ['ar', 'stop', 'hint', 'soundBtn'].forEach((id) => $(id).style.display = 'none');
-  $('intro').style.display = 'flex';
-  $('startBtn').disabled = false;
-}
-$('stop').addEventListener('click', () => { stopAR(); status(''); });
-$('soundBtn').addEventListener('click', () => {
-  if (!currentVideo) return;
-  currentVideo.muted = false;
-  currentVideo.play();
-  $('soundBtn').style.display = 'none';
-});
-</script>
+    function stopAR() {
+      if (mindarThree) {
+        mindarThree.renderer.setAnimationLoop(null);
+        mindarThree.stop();
+        mindarThree = null;
+      }
+      videos.forEach((v) => v.pause());
+      currentVideo = null;
+      $('ar').innerHTML = '';
+      ['ar', 'stop', 'hint', 'soundBtn'].forEach((id) => $(id).style.display = 'none');
+      $('intro').style.display = 'flex';
+      $('startBtn').disabled = false;
+    }
+    $('stop').addEventListener('click', () => { stopAR(); status(''); });
+    $('soundBtn').addEventListener('click', () => {
+      if (!currentVideo) return;
+      currentVideo.muted = false;
+      currentVideo.play();
+      $('soundBtn').style.display = 'none';
+    });
+  </script>
 </body>
+
 </html>
