@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  FICHE D'UNE ŒUVRE — c'est la page qu'ouvre le QR code.
+  Le lien contient l'identifiant de l'œuvre : fiche.html?oeuvre=madame
+  La page va chercher cette œuvre dans oeuvres.js et affiche tous ses contenus.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MieuxVautArt — fiche de l'œuvre</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #f5f5f5; }
+    main { max-width: 560px; margin: 0 auto; padding: 20px 18px 48px; }
+    .logo { font-weight: 700; color: #aaa; font-size: .9rem; margin-bottom: 16px; }
+    .logo span { color: #ff3d7f; }
+    img.oeuvre { width: 100%; border-radius: 14px; display: block; }
+    h1 { font-size: 1.7rem; margin: 18px 0 4px; }
+    .artiste { color: #aaa; margin: 0 0 20px; }
+    .bloc { background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .bloc h2 { font-size: 1rem; margin: 0 0 12px; }
+    .langues { display: flex; gap: 8px; margin-bottom: 12px; }
+    .langues button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #444;
+                      background: transparent; color: #f5f5f5; font-weight: 600; cursor: pointer; }
+    .langues button.actif { background: #ff3d7f; border-color: #ff3d7f; }
+    audio, video { width: 100%; border-radius: 10px; }
+    p.texte { line-height: 1.55; color: #ddd; margin: 0; }
+    .btn { display: block; width: 100%; text-align: center; padding: 14px; border: 0; border-radius: 12px;
+           font-size: 1rem; font-weight: 700; background: #ff3d7f; color: #fff; text-decoration: none; cursor: pointer; }
+    .btn.secondaire { background: transparent; border: 1px solid #ff3d7f; color: #ff3d7f; }
+    .cache { display: none; }
+    .erreur { color: #ffd166; text-align: center; margin-top: 40vh; }
+  </style>
+</head>
+<body>
+  <main id="page"></main>
+
+  <script type="module">
+    import { OEUVRES } from './oeuvres.js';
+
+    const page = document.getElementById('page');
+
+    // 1. On lit l'identifiant dans le lien : ?oeuvre=madame → 'madame'
+    const id = new URLSearchParams(location.search).get('oeuvre');
+    const oeuvre = OEUVRES.find((o) => o.id === id);
+
+    // 2. Œuvre introuvable → message d'erreur
+    if (!oeuvre) {
+      page.innerHTML = `<p class="erreur">Œuvre introuvable 😕</p>`;
+    } else {
+      afficher(oeuvre);
+    }
+
+    // 3. On construit la fiche avec tous les contenus de l'œuvre
+    function afficher(o) {
+      document.title = `${o.titre} — MieuxVautArt`;
+      const langues = Object.keys(o.audio || {});              // ex. ['fr', 'en']
+      const noms = { fr: '🇫🇷 Français', en: '🇬🇧 English', es: '🇪🇸 Español', de: '🇩🇪 Deutsch' };
+
+      page.innerHTML = `
+        <div class="logo">MieuxVaut<span>Art</span> · ART42</div>
+        <img class="oeuvre" src="${o.image}" alt="${o.titre}">
+        <h1>${o.titre}</h1>
+        <p class="artiste">${o.artiste} · ${o.annee}</p>
+
+        ${langues.length ? `
+        <section class="bloc">
+          <h2>🎧 Écouter l'œuvre</h2>
+          ${langues.length > 1 ? `<div class="langues">
+            ${langues.map((l) => `<button data-langue="${l}">${noms[l] || l}</button>`).join('')}
+          </div>` : ''}
+          <audio id="audio" controls preload="metadata"></audio>
+        </section>` : ''}
+
+        <section class="bloc">
+          <h2>📖 Son histoire</h2>
+          <p class="texte">${o.texte}</p>
+        </section>
+
+        ${o.video ? `
+        <section class="bloc">
+          <button class="btn secondaire" id="voirVideo">🎬 Voir l'artiste</button>
+          <video id="video" class="cache" controls playsinline src="${o.video}"></video>
+        </section>` : ''}
+
+        <a class="btn" href="index.html?oeuvre=${o.id}">✨ Voir en réalité augmentée</a>
+      `;
+
+      // Audio : on charge la première langue, et on change au clic sur un bouton
+      if (langues.length) {
+        const audio = document.getElementById('audio');
+        const choisir = (l) => {
+          audio.src = o.audio[l];
+          document.querySelectorAll('.langues button').forEach((b) =>
+            b.classList.toggle('actif', b.dataset.langue === l));
+        };
+        document.querySelectorAll('.langues button').forEach((b) =>
+          b.addEventListener('click', () => { choisir(b.dataset.langue); audio.play(); }));
+        choisir(langues[0]);
+      }
+
+      // Vidéo : cachée par défaut (on profite d'abord de l'œuvre), affichée au clic
+      const bouton = document.getElementById('voirVideo');
+      if (bouton) {
+        bouton.addEventListener('click', () => {
+          document.getElementById('audio')?.pause();     // on coupe l'audio s'il joue
+          const video = document.getElementById('video');
+          video.classList.remove('cache');
+          bouton.classList.add('cache');
+          video.play();
+        });
+      }
+    }
+  </script>
+</body>
+</html>
