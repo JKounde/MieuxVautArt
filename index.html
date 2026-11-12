@@ -35,9 +35,12 @@
 
     /* L'écran d'accueil : tout est centré au milieu de l'écran */
     #intro {
-      min-height: 100vh;          /* 100vh = toute la hauteur de l'écran */
-      display: flex;              /* flexbox pour centrer facilement */
-      flex-direction: column;     /* les éléments les uns sous les autres */
+      min-height: 100vh;
+      /* 100vh = toute la hauteur de l'écran */
+      display: flex;
+      /* flexbox pour centrer facilement */
+      flex-direction: column;
+      /* les éléments les uns sous les autres */
       align-items: center;
       justify-content: center;
       padding: 24px;
@@ -87,7 +90,8 @@
     /* La zone de réalité augmentée : plein écran, cachée au départ */
     #ar {
       position: fixed;
-      inset: 0;                   /* colle aux 4 bords de l'écran */
+      inset: 0;
+      /* colle aux 4 bords de l'écran */
       display: none;
     }
 
@@ -96,7 +100,8 @@
       position: fixed;
       top: 12px;
       right: 12px;
-      z-index: 10;                /* passe au-dessus de la caméra */
+      z-index: 10;
+      /* passe au-dessus de la caméra */
       padding: 10px 14px;
       font-size: .95rem;
       display: none;
@@ -118,14 +123,16 @@
       position: fixed;
       bottom: 22px;
       left: 50%;
-      transform: translateX(-50%);   /* astuce pour centrer horizontalement */
+      transform: translateX(-50%);
+      /* astuce pour centrer horizontalement */
       z-index: 10;
       background: rgba(0, 0, 0, .65);
       padding: 8px 14px;
       border-radius: 20px;
       font-size: .95rem;
       display: none;
-      white-space: nowrap;         /* le texte reste sur une seule ligne */
+      white-space: nowrap;
+      /* le texte reste sur une seule ligne */
     }
   </style>
 </head>
@@ -269,7 +276,7 @@
       // 1. On crée les vidéos et on "débloque" leur son pendant le tap.
       //    Les navigateurs interdisent le son sans geste de l'utilisateur :
       //    on lance chaque vidéo une fraction de seconde, puis on la met en pause.
-      videos = OEUVRES.map((o) => makeVideo(o.video));
+      videos = OEUVRES.map((o) => makeVideo(o.videoRA || o.video)); // videoRA si elle existe, sinon video
       for (const v of videos) {
         try { await v.play(); v.pause(); v.currentTime = 0; } catch (e) { console.warn(e); }
       }
