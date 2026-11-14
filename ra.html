@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  MieuxVautArt — on vise une œuvre, son guide apparaît et parle
+  ============================================================
+  Ce fichier contient 3 langages :
+    1. HTML  → la structure de la page (titres, boutons…)
+    2. CSS   → le style (couleurs, tailles, positions)
+    3. JavaScript → la logique (caméra, reconnaissance, vidéo)
+  + un tout petit bout de GLSL (le "shader") qui efface le fond vert.
+  Il n'y a PAS de Python dans ce projet.
+-->
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- Indispensable sur mobile : la page s'adapte à la largeur de l'écran -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MieuxVautArt — réalité augmentée</title>
+
+  <!-- ========================= CSS ========================= -->
+  <style>
+    /* Les tailles incluent le padding et la bordure (plus simple à calculer) */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Fond sombre et police du système pour toute la page */
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+    }
+
+    /* L'écran d'accueil : tout est centré au milieu de l'écran */
+    #intro {
+      min-height: 100vh;          /* 100vh = toute la hauteur de l'écran */
+      display: flex;              /* flexbox pour centrer facilement */
+      flex-direction: column;     /* les éléments les uns sous les autres */
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 6px;
+    }
+
+    /* Le mot "Art" du titre en rose */
+    h1 span {
+      color: #ff3d7f;
+    }
+
+    p {
+      color: #aaa;
+      max-width: 340px;
+    }
+
+    /* Style commun à tous les boutons */
+    button {
+      padding: 16px 26px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: #ff3d7f;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* Bouton grisé quand il est désactivé (pendant le chargement) */
+    button:disabled {
+      background: #444;
+      color: #888;
+    }
+
+    /* Zone de messages ("Préparation… 40 %", erreurs…) */
+    #status {
+      margin-top: 14px;
+      color: #ffd166;
+      min-height: 1.2em;
+    }
+
+    /* La zone de réalité augmentée : plein écran, cachée au départ */
+    #ar {
+      position: fixed;
+      inset: 0;                   /* colle aux 4 bords de l'écran */
+      display: none;
+    }
+
+    /* Bouton "Quitter" en haut à droite, caché au départ */
+    #stop {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 10;                /* passe au-dessus de la caméra */
+      padding: 10px 14px;
+      font-size: .95rem;
+      display: none;
+    }
+
+    /* Bouton "Activer le son" en haut à gauche, caché au départ */
+    #soundBtn {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      padding: 10px 14px;
+      font-size: .95rem;
+      display: none;
+    }
+
+    /* Petite bulle "Vise une œuvre" en bas, centrée */
+    #hint {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);   /* astuce pour centrer horizontalement */
+      z-index: 10;
+      background: rgba(0, 0, 0, .65);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: .95rem;
+      display: none;
+      white-space: nowrap;         /* le texte reste sur une seule ligne */
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ========================= HTML ========================= -->
+
+  <!-- L'écran d'accueil -->
+  <div id="intro">
+    <h1>MieuxVaut<span>Art</span></h1>
+    <p>Vise une œuvre avec ton téléphone : son guide apparaît pour te la raconter 🎨</p>
+    <!-- Ce "tap" est obligatoire : sur mobile, il autorise la caméra ET le son -->
+    <button id="startBtn">▶ Commencer la visite</button>
+    <p><a href="index.html" style="color:#aaa;">← Toutes les œuvres</a></p>
+    <div id="status"></div>
+  </div>
+
+  <!-- La zone où MindAR affichera la caméra + la vidéo du guide -->
+  <div id="ar"></div>
+  <button id="stop">✕ Quitter</button>
+  <button id="soundBtn">🔊 Activer le son</button>
+  <div id="hint">Vise une œuvre avec la caméra 👀</div>
+
+  <!--
+    L'importmap = un "carnet d'adresses" des librairies.
+    Quand le code écrit `import ... from 'three'`, le navigateur sait
+    qu'il doit aller chercher Three.js à cette adresse sur internet.
+  -->
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+
+  <!-- ========================= JAVASCRIPT ========================= -->
+  <!-- type="module" permet d'utiliser `import` (et oblige à passer par un serveur web) -->
+  <script type="module">
+    // On importe les 3 outils dont on a besoin :
+    import * as THREE from 'three';                         // Three.js : la 3D (afficher la vidéo dans l'espace)
+    import { MindARThree } from 'mindar-image-three';       // MindAR : reconnaître l'œuvre dans la caméra
+    import { Compiler } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js'; // pour "apprendre" l'œuvre
+    import { OEUVRES as TOUTES } from './oeuvres.js';            // nos œuvres
+
+    // ⚙️ LES ŒUVRES viennent du fichier partagé oeuvres.js (le même que fiche.html et index.html)
+    // Si le lien contient ?oeuvre=madame (on vient d'une fiche ou d'un QR code),
+    // on ne charge QUE cette œuvre : c'est plus rapide et plus fiable.
+    // Sinon, on charge toutes les œuvres qui ont une image (la cible de la RA).
+    const idDemande = new URLSearchParams(location.search).get('oeuvre');
+    const OEUVRES = TOUTES.filter((o) => o.image && (o.videoRA || o.video) && (!idDemande || o.id === idDemande));
+
+    // Petits raccourcis pratiques
+    const $ = (id) => document.getElementById(id);            // $('stop') = l'élément HTML id="stop"
+    const status = (msg) => { $('status').textContent = msg; }; // affiche un message à l'écran
+
+    // Variables partagées par tout le programme
+    let mindarThree = null;     // le moteur de réalité augmentée
+    let videos = [];            // une balise <video> par œuvre
+    let currentVideo = null;    // la vidéo en train de jouer
+
+    // ---------------------------------------------------------
+    // Charger la photo de l'œuvre et la réduire à 1000 px max.
+    // Pourquoi réduire ? Une photo de téléphone fait ~4000 px :
+    // l'analyser prend trop de mémoire et fait planter le mobile.
+    // ---------------------------------------------------------
+    function loadImage(src) {
+      // Une Promise = "je te réponds plus tard, quand l'image sera chargée"
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // Le facteur de réduction (1 = on ne touche pas si l'image est déjà petite)
+          const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+          // On redessine l'image en plus petit dans un canvas (une "feuille de dessin")
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas);   // c'est ce canvas qu'on donnera à MindAR
+        };
+        img.onerror = () => reject(new Error(`Image introuvable : ${src}`));
+        img.src = src;        // lance le chargement
+      });
+    }
+
+    // ---------------------------------------------------------
+    // Créer une balise <video> (invisible) pour un guide.
+    // Elle sert de "texture" : Three.js la peint sur un rectangle.
+    // ---------------------------------------------------------
+    function makeVideo(src) {
+      const v = document.createElement('video');
+      v.src = src;
+      v.loop = true;              // la vidéo recommence en boucle
+      v.playsInline = true;       // sur iPhone : ne pas passer en plein écran
+      v.preload = 'auto';         // commencer à la charger tout de suite
+      v.crossOrigin = 'anonymous';
+      return v;
+    }
+
+    // ---------------------------------------------------------
+    // Le "shader" fond vert.
+    // Un shader est un mini-programme (en langage GLSL) qui tourne
+    // sur la carte graphique et décide de la couleur de CHAQUE pixel.
+    // ---------------------------------------------------------
+    function makeChromaMaterial(texture) {
+      return new THREE.ShaderMaterial({
+        // Les "uniforms" = les réglages qu'on envoie au shader
+        uniforms: {
+          map: { value: texture },                          // la vidéo
+          keyColor: { value: new THREE.Color(0x00ff00) },   // la couleur à effacer : vert pur
+          crop: { value: 0.05 }                             // on coupe 5 % de chaque côté
+        },
+        // Vertex shader : place le rectangle dans l'espace (on ne le modifie pas)
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        // Fragment shader : calcule la couleur de chaque pixel
+        // vUv = la position du pixel dans la vidéo (0 = bord gauche, 1 = bord droit)
+        fragmentShader: `
+      uniform sampler2D map; uniform vec3 keyColor; uniform float crop; varying vec2 vUv;
+      void main(){
+        // 1. Les pixels tout au bord gauche ou droit : on ne les dessine pas (bandes noires)
+        if (vUv.x < crop || vUv.x > 1.0 - crop) discard;
+        // 2. On lit la couleur du pixel dans la vidéo
+        vec4 c = texture2D(map, vUv);
+        // 3. Plus le pixel est proche du vert, plus il devient transparent (alpha proche de 0)
+        float alpha = smoothstep(0.35, 0.55, distance(c.rgb, keyColor));
+        gl_FragColor = vec4(c.rgb, alpha);
+      }`,
+        transparent: true          // autorise la transparence
+      });
+    }
+
+    // =========================================================
+    // QUAND ON APPUIE SUR "COMMENCER LA VISITE"
+    // `async` permet d'utiliser `await` = "attends que ce soit fini"
+    // =========================================================
+    $('startBtn').addEventListener('click', async () => {
+      $('startBtn').disabled = true;   // on évite les doubles clics
+      if (!OEUVRES.length) { status('Pas encore de réalité augmentée pour cette œuvre 😕'); $('startBtn').disabled = false; return; }
+
+      // 1. On crée les vidéos et on "débloque" leur son pendant le tap.
+      //    Les navigateurs interdisent le son sans geste de l'utilisateur :
+      //    on lance chaque vidéo une fraction de seconde, puis on la met en pause.
+      videos = OEUVRES.map((o) => makeVideo(o.videoRA || o.video)); // videoRA si elle existe, sinon video
+      for (const v of videos) {
+        try { await v.play(); v.pause(); v.currentTime = 0; } catch (e) { console.warn(e); }
+      }
+
+      try {
+        // 2. MindAR "apprend" toutes les œuvres (il repère leurs points remarquables)
+        status('Préparation… 0 %');
+        const images = await Promise.all(OEUVRES.map((o) => loadImage(o.image))); // charge toutes les photos
+        const compiler = new Compiler();
+        await compiler.compileImageTargets(images, (p) => status(`Préparation… ${Math.round(p)} %`));
+        // Le résultat (l'équivalent d'un fichier .mind) devient une adresse temporaire
+        const targetUrl = URL.createObjectURL(new Blob([await compiler.exportData()]));
+
+        // 3. On passe de l'écran d'accueil à l'écran caméra
+        status('Ouverture de la caméra…');
+        $('intro').style.display = 'none';
+        $('ar').style.display = 'block';
+        $('stop').style.display = 'block';
+        $('hint').style.display = 'block';
+
+        // On crée le moteur RA. maxTrack: 1 = il suit une seule œuvre à la fois
+        mindarThree = new MindARThree({ container: $('ar'), imageTargetSrc: targetUrl, maxTrack: 1 });
+        // renderer = le dessinateur, scene = le décor 3D, camera = le point de vue
+        const { renderer, scene, camera } = mindarThree;
+
+        // 4. Pour chaque œuvre : on accroche son guide à sa droite
+        OEUVRES.forEach((oeuvre, i) => {
+          const v = videos[i];
+
+          // La vidéo devient une texture (une "peinture" qu'on pose sur une forme 3D)
+          const texture = new THREE.VideoTexture(v);
+          texture.colorSpace = THREE.SRGBColorSpace;   // pour avoir les bonnes couleurs
+
+          // Le "matériau" = la façon de peindre : avec ou sans effacement du vert
+          const material = oeuvre.fondVert ? makeChromaMaterial(texture)
+            : new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+
+          // Le rectangle (plane) sur lequel on peint la vidéo.
+          // Unités : 1 = la largeur de l'œuvre. Ici 1.2 = 120 % de sa largeur.
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2 * 16 / 9), material);
+
+          // Position par rapport au centre de l'œuvre (x, y, z) :
+          //   x → gauche/droite (positif = à droite)
+          //   y → bas/haut (positif = plus haut)
+          //   z → derrière/devant (0.05 = un tout petit peu devant l'œuvre)
+          plane.position.set(0.85, 0, 0.05);
+
+          // On adapte la hauteur du rectangle à la vraie forme de la vidéo,
+          // sinon le guide apparaît écrasé ou étiré.
+          const ajusterForme = () => {
+            if (v.videoWidth) plane.scale.y = (v.videoHeight / v.videoWidth) / (16 / 9);
+          };
+          ajusterForme();                                    // si la vidéo est déjà chargée
+          v.addEventListener('loadedmetadata', ajusterForme); // sinon, dès qu'elle l'est
+
+          // L'ancre = le point d'accroche lié à l'œuvre n° i.
+          // Tout ce qu'on y ajoute suit l'œuvre quand le téléphone bouge.
+          const anchor = mindarThree.addAnchor(i);
+          anchor.group.add(plane);
+
+          // Quand MindAR TROUVE l'œuvre dans la caméra :
+          anchor.onTargetFound = () => {
+            $('hint').style.display = 'none';
+            // Un seul guide parle à la fois : on coupe l'ancien s'il y en a un
+            if (currentVideo && currentVideo !== v) currentVideo.pause();
+            currentVideo = v;
+            v.muted = false;
+            // On lance la vidéo avec le son. Si le navigateur refuse,
+            // on la joue en muet et on affiche le bouton "Activer le son".
+            v.play().catch(() => {
+              v.muted = true;
+              v.play();
+              $('soundBtn').style.display = 'block';
+            });
+          };
+
+          // Quand MindAR PERD l'œuvre : on remet la bulle d'aide et on met en pause
+          anchor.onTargetLost = () => { $('hint').style.display = 'block'; v.pause(); };
+        });
+
+        // 5. On allume la caméra et on lance la boucle d'affichage
+        //    (le dessin est refait ~60 fois par seconde)
+        await mindarThree.start();
+        renderer.setAnimationLoop(() => renderer.render(scene, camera));
+
+      } catch (err) {
+        // En cas de problème (image introuvable, caméra refusée…) :
+        console.error(err);
+        stopAR();
+        status('Oups : ' + (err.message || err));
+      }
+    });
+
+    // ---------------------------------------------------------
+    // Tout arrêter et revenir à l'écran d'accueil
+    // ---------------------------------------------------------
+    function stopAR() {
+      if (mindarThree) {
+        mindarThree.renderer.setAnimationLoop(null); // on arrête la boucle d'affichage
+        mindarThree.stop();                          // on éteint la caméra
+        mindarThree = null;
+      }
+      videos.forEach((v) => v.pause());
+      currentVideo = null;
+      $('ar').innerHTML = '';                        // on vide la zone RA
+      ['ar', 'stop', 'hint', 'soundBtn'].forEach((id) => $(id).style.display = 'none');
+      $('intro').style.display = 'flex';             // on réaffiche l'accueil
+      $('startBtn').disabled = false;
+    }
+
+    // Bouton "Quitter"
+    $('stop').addEventListener('click', () => { stopAR(); status(''); });
+
+    // Bouton "Activer le son" (un vrai tap de l'utilisateur, donc le son est autorisé)
+    $('soundBtn').addEventListener('click', () => {
+      if (!currentVideo) return;
+      currentVideo.muted = false;
+      currentVideo.play();
+      $('soundBtn').style.display = 'none';
+    });
+  </script>
+</body>
+
+</html>

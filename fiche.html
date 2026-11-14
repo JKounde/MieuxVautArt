@@ -1,68 +1,129 @@
 <!DOCTYPE html>
 <!--
-  FICHE D'UNE ŒUVRE — c'est la page qu'ouvre le QR code.
-  Le lien contient l'identifiant de l'œuvre : fiche.html?oeuvre=madame
-  La page va chercher cette œuvre dans oeuvres.js et affiche tous ses contenus.
+  ================================================================
+  FICHE D'UNE ŒUVRE — c'est la page qu'ouvre le QR code
+  ================================================================
+  Comment ça marche, en 3 étapes :
+    1. Le QR code contient un lien, par exemple :
+         https://jkounde.github.io/MieuxVautArt/fiche.html?oeuvre=madame
+    2. La page lit la fin du lien (?oeuvre=madame) → elle sait quelle œuvre afficher.
+    3. Elle va chercher cette œuvre dans oeuvres.js et affiche tous ses contenus
+       (photo, audio, texte, vidéo, bouton RA).
+
+  👉 UNE SEULE page fiche.html sert pour TOUTES les œuvres :
+     c'est le lien qui change (?oeuvre=madame, ?oeuvre=erell…), pas la page.
 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <!-- La page s'adapte à la largeur du téléphone -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MieuxVautArt — fiche de l'œuvre</title>
+
+  <!-- ========================= CSS ========================= -->
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #f5f5f5; }
+
+    /* La colonne centrale : 560 px max, centrée */
     main { max-width: 560px; margin: 0 auto; padding: 20px 18px 48px; }
+
+    /* Le petit logo en haut */
     .logo { font-weight: 700; color: #aaa; font-size: .9rem; margin-bottom: 16px; }
     .logo span { color: #ff3d7f; }
+
+    /* La photo de l'œuvre prend toute la largeur */
     img.oeuvre { width: 100%; border-radius: 14px; display: block; }
+
     h1 { font-size: 1.7rem; margin: 18px 0 4px; }
     .artiste { color: #aaa; margin: 0 0 20px; }
+
+    /* Les "cartes" grises (Écouter, Son histoire, Voir l'artiste) */
     .bloc { background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
     .bloc h2 { font-size: 1rem; margin: 0 0 12px; }
+
+    /* Les boutons de langue (Français / English), côte à côte */
     .langues { display: flex; gap: 8px; margin-bottom: 12px; }
     .langues button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #444;
                       background: transparent; color: #f5f5f5; font-weight: 600; cursor: pointer; }
+    /* La langue choisie est en rose */
     .langues button.actif { background: #ff3d7f; border-color: #ff3d7f; }
+
     audio, video { width: 100%; border-radius: 10px; }
     p.texte { line-height: 1.55; color: #ddd; margin: 0; }
+
+    /* Les gros boutons roses */
     .btn { display: block; width: 100%; text-align: center; padding: 14px; border: 0; border-radius: 12px;
            font-size: 1rem; font-weight: 700; background: #ff3d7f; color: #fff; text-decoration: none; cursor: pointer; }
+    /* Variante : bouton avec seulement un contour */
     .btn.secondaire { background: transparent; border: 1px solid #ff3d7f; color: #ff3d7f; }
+
+    /* Classe pour cacher un élément */
     .cache { display: none; }
+
     .erreur { color: #ffd166; text-align: center; margin-top: 40vh; }
   </style>
 </head>
 <body>
+  <!-- ========================= HTML ========================= -->
+  <!-- Une seule boîte VIDE : c'est le JavaScript qui va la remplir avec la fiche -->
   <main id="page"></main>
 
+  <!-- ========================= JAVASCRIPT ========================= -->
   <script type="module">
+    // On récupère la liste des œuvres depuis le fichier partagé
     import { OEUVRES } from './oeuvres.js';
 
+    // La boîte vide qu'on va remplir
     const page = document.getElementById('page');
 
-    // 1. On lit l'identifiant dans le lien : ?oeuvre=madame → 'madame'
+    // ---------------------------------------------------------
+    // ÉTAPE 1 : lire l'identifiant de l'œuvre dans le lien
+    // ---------------------------------------------------------
+    // location.search = tout ce qui est après le "?" dans l'adresse → "?oeuvre=madame"
+    // URLSearchParams sait lire ce morceau, et .get('oeuvre') renvoie "madame"
     const id = new URLSearchParams(location.search).get('oeuvre');
+
+    // ---------------------------------------------------------
+    // ÉTAPE 2 : chercher cette œuvre dans la liste
+    // ---------------------------------------------------------
+    // .find() parcourt la liste et renvoie la PREMIÈRE œuvre dont l'id correspond
+    // (ou undefined s'il n'y en a aucune)
     const oeuvre = OEUVRES.find((o) => o.id === id);
 
-    // 2. Œuvre introuvable → message d'erreur
+    // ---------------------------------------------------------
+    // ÉTAPE 3 : afficher la fiche (ou un message d'erreur)
+    // ---------------------------------------------------------
     if (!oeuvre) {
       page.innerHTML = `<p class="erreur">Œuvre introuvable 😕</p>`;
     } else {
       afficher(oeuvre);
     }
 
-    // 3. On construit la fiche avec tous les contenus de l'œuvre
+    // ---------------------------------------------------------
+    // Construire la fiche avec tous les contenus de l'œuvre
+    // ---------------------------------------------------------
     function afficher(o) {
+      // Le titre de l'onglet du navigateur
       document.title = `${o.titre} — MieuxVautArt`;
-      const langues = Object.keys(o.audio || {});              // ex. ['fr', 'en']
+
+      // Les langues disponibles pour l'audio.
+      // Object.keys({fr: '...', en: '...'}) → ['fr', 'en']
+      // (|| {} évite une erreur si l'œuvre n'a pas d'audio)
+      const langues = Object.keys(o.audio || {});
+
+      // Le nom affiché pour chaque code de langue
       const noms = { fr: '🇫🇷 Français', en: '🇬🇧 English', es: '🇪🇸 Español', de: '🇩🇪 Deutsch' };
 
+      // On écrit tout le HTML de la fiche d'un coup.
+      // Les `backticks` permettent d'insérer des variables avec ${...}
+      // La syntaxe  condition ? `html` : ''  veut dire :
+      //   "si la condition est vraie, on met ce HTML, sinon rien"
       page.innerHTML = `
-        <div class="logo">MieuxVaut<span>Art</span> · ART42</div>
-        <img class="oeuvre" src="${o.image}" alt="${o.titre}">
+        <a class="logo" href="index.html" style="text-decoration:none;display:block;">← MieuxVaut<span>Art</span> · Toutes les œuvres</a>
+        ${o.image ? `<img class="oeuvre" src="${o.image}" alt="${o.titre}">` : ''}
         <h1>${o.titre}</h1>
-        <p class="artiste">${o.artiste} · ${o.annee}</p>
+        <p class="artiste">${[o.artiste, o.annee, o.zone].filter(Boolean).join(' · ')}</p>
 
         ${langues.length ? `
         <section class="bloc">
@@ -84,30 +145,43 @@
           <video id="video" class="cache" controls playsinline src="${o.video}"></video>
         </section>` : ''}
 
-        <a class="btn" href="index.html?oeuvre=${o.id}">✨ Voir en réalité augmentée</a>
+        ${o.image && (o.videoRA || o.video) ? `<a class="btn" href="ra.html?oeuvre=${o.id}">✨ Voir en réalité augmentée</a>` : ''}
       `;
+      // ☝️ Le bouton RA (seulement si l'œuvre a une image et une vidéo) est un lien vers ra.html,
+      //    avec le même identifiant (?oeuvre=madame) : la page RA saura quelle œuvre chercher.
+      //    Les ${condition ? `html` : ''} n'affichent un bloc que si l'œuvre a le contenu correspondant.
 
-      // Audio : on charge la première langue, et on change au clic sur un bouton
+      // ----- L'AUDIO -----
       if (langues.length) {
         const audio = document.getElementById('audio');
+
+        // Choisir une langue = changer le fichier audio + colorer le bon bouton
         const choisir = (l) => {
-          audio.src = o.audio[l];
+          audio.src = o.audio[l];   // ex. o.audio['fr'] → 'madame-fr.mp3'
           document.querySelectorAll('.langues button').forEach((b) =>
+            // toggle('actif', vrai/faux) : ajoute la classe si vrai, l'enlève si faux
             b.classList.toggle('actif', b.dataset.langue === l));
         };
+
+        // Un clic sur un bouton de langue → on change de langue et on lance l'audio
+        // (b.dataset.langue lit l'attribut data-langue="fr" du bouton)
         document.querySelectorAll('.langues button').forEach((b) =>
           b.addEventListener('click', () => { choisir(b.dataset.langue); audio.play(); }));
+
+        // Au départ, on charge la première langue de la liste
         choisir(langues[0]);
       }
 
-      // Vidéo : cachée par défaut (on profite d'abord de l'œuvre), affichée au clic
+      // ----- LA VIDÉO -----
+      // Elle est cachée au départ : on profite d'abord de l'œuvre.
       const bouton = document.getElementById('voirVideo');
       if (bouton) {
         bouton.addEventListener('click', () => {
-          document.getElementById('audio')?.pause();     // on coupe l'audio s'il joue
+          // ?. = "si l'audio existe, on le met en pause" (sinon on ne fait rien)
+          document.getElementById('audio')?.pause();
           const video = document.getElementById('video');
-          video.classList.remove('cache');
-          bouton.classList.add('cache');
+          video.classList.remove('cache');   // on montre la vidéo
+          bouton.classList.add('cache');     // on cache le bouton
           video.play();
         });
       }

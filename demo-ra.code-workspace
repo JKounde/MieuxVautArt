@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"name": "demo-ra",
+		"path": "."
+	},
+	{
+		"name": "panoramas",
+		"path": "../../Desktop/panoramas"
+	}
+],
+  "settings": {}
+}
