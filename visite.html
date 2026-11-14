@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!--
+  ================================================================
+  VISITE VIRTUELLE 360° D'ART42 — on visite le musée depuis chez soi
+  ================================================================
+  Comment ça marche :
+    - Chaque "scène" = UNE photo panoramique à 360° prise à un endroit du musée.
+    - Dans chaque scène, on place des "hotspots" (points cliquables) :
+        • des flèches pour aller à une autre scène (se déplacer) ;
+        • des points sur les œuvres qui ouvrent leur fiche (fiche.html?oeuvre=…).
+    - C'est la librairie open source Pannellum qui affiche les panoramas.
+
+  Pour placer un point : on clique dans la visite en appuyant sur Alt (Option sur Mac)
+  → les coordonnées (pitch, yaw) s'affichent en bas : on les recopie dans SCENES.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MieuxVautArt — Visiter ART42 depuis chez soi</title>
+
+  <!-- Pannellum : le style (CSS) et le moteur (JS) de la visite 360° -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #111; font-family: system-ui, sans-serif; }
+
+    /* La visite prend tout l'écran */
+    #visite { width: 100%; height: 100%; }
+
+    /* Le bandeau en haut à gauche */
+    .bandeau { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; background: rgba(0,0,0,.65);
+               color: #fff; padding: 8px 14px; border-radius: 12px; font-weight: 700; }
+    .bandeau span { color: #ff3d7f; }
+
+    /* Les coordonnées affichées quand on clique avec Alt (outil pour placer les points) */
+    #coords { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+              background: rgba(0,0,0,.75); color: #ffd166; padding: 8px 14px; border-radius: 10px;
+              font: 600 .9rem monospace; display: none; }
+
+    /* ---- Le style de NOS points sur les œuvres (rond rose qui pulse) ---- */
+    .point-oeuvre { width: 34px; height: 34px; border-radius: 50%; background: #ff3d7f;
+                    border: 4px solid #fff; cursor: pointer; animation: pulse 1.6s infinite; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255, 61, 127, .7); }
+      100% { box-shadow: 0 0 0 18px rgba(255, 61, 127, 0); }
+    }
+    /* L'étiquette qui apparaît au survol du point */
+    .point-oeuvre span { visibility: hidden; position: absolute; bottom: 44px; left: 50%;
+                         transform: translateX(-50%); white-space: nowrap; background: #fff; color: #111;
+                         padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: .9rem; }
+    .point-oeuvre:hover span { visibility: visible; }
+  </style>
+</head>
+<body>
+  <div class="bandeau">MieuxVaut<span>Art</span> · Visite d'ART42</div>
+  <div id="visite"></div>
+  <div id="coords"></div>
+
+  <script>
+    // =========================================================
+    // ⚙️ LES SCÈNES DE LA VISITE : une scène = une photo 360°
+    // ---------------------------------------------------------
+    // pitch = haut/bas (0 = à l'horizontale, positif = vers le haut)
+    // yaw   = gauche/droite (0 = centre de la photo, de -180 à 180)
+    // =========================================================
+    const SCENES = {
+      entree: {
+        titre: "L'entrée",
+        image: 'panoramas/entree.jpg',
+        liens: [
+          { pitch: -5, yaw: 0, vers: 'couloir', texte: 'Aller au couloir' },
+        ],
+        oeuvres: [],
+      },
+      couloir: {
+        titre: 'Le couloir',
+        image: 'panoramas/couloir.jpg',
+        liens: [
+          { pitch: -5, yaw: 0,   vers: 'salle',  texte: 'Aller à la salle' },
+          { pitch: -5, yaw: 180, vers: 'entree', texte: "Retour à l'entrée" },
+        ],
+        oeuvres: [
+          { pitch: 0, yaw: 70, id: 'madame', titre: 'Madame' },  // id = celui de oeuvres.js
+        ],
+      },
+      salle: {
+        titre: 'La salle des œuvres',
+        image: 'panoramas/salle.jpg',
+        liens: [
+          { pitch: -5, yaw: 180, vers: 'couloir', texte: 'Retour au couloir' },
+        ],
+        oeuvres: [
+          { pitch: 0, yaw: -60, id: 'madame', titre: 'Madame' },
+        ],
+      },
+    };
+
+    // ---------------------------------------------------------
+    // Dessiner NOTRE point rose sur une œuvre.
+    // Pannellum appelle cette fonction pour créer le HTML du point.
+    // ---------------------------------------------------------
+    function dessinerPointOeuvre(div, titre) {
+      div.classList.add('point-oeuvre');
+      const etiquette = document.createElement('span');
+      etiquette.textContent = '🎧 ' + titre;
+      div.appendChild(etiquette);
+    }
+
+    // ---------------------------------------------------------
+    // Transformer NOS scènes (simples à lire) au format attendu par Pannellum
+    // ---------------------------------------------------------
+    const scenesPannellum = {};
+    for (const [id, s] of Object.entries(SCENES)) {
+      scenesPannellum[id] = {
+        title: s.title || s.titre,
+        type: 'equirectangular',      // le format des photos 360° (2 fois plus large que haute)
+        panorama: s.image,
+        hotSpots: [
+          // Les flèches pour se déplacer ("scene" = type de point déjà prévu par Pannellum)
+          ...s.liens.map((l) => ({
+            pitch: l.pitch, yaw: l.yaw, type: 'scene', text: l.texte, sceneId: l.vers,
+          })),
+          // Les points sur les œuvres : un clic ouvre la fiche
+          ...s.oeuvres.map((o) => ({
+            pitch: o.pitch, yaw: o.yaw,
+            cssClass: 'point-perso',
+            createTooltipFunc: dessinerPointOeuvre,
+            createTooltipArgs: o.titre,
+            clickHandlerFunc: () => { window.location.href = `fiche.html?oeuvre=${o.id}`; },
+          })),
+        ],
+      };
+    }
+
+    // ---------------------------------------------------------
+    // Lancer la visite
+    // ---------------------------------------------------------
+    const viewer = pannellum.viewer('visite', {
+      default: {
+        firstScene: 'entree',     // la scène de départ
+        sceneFadeDuration: 800,   // fondu de 0,8 s entre deux scènes
+        autoLoad: true,           // pas besoin de cliquer pour charger
+        showControls: true,       // boutons zoom / plein écran
+      },
+      scenes: scenesPannellum,
+    });
+
+    // ---------------------------------------------------------
+    // 🛠️ Outil pour placer les points : Alt + clic → affiche pitch et yaw
+    // ---------------------------------------------------------
+    viewer.on('mousedown', (e) => {
+      if (!e.altKey) return;
+      const [pitch, yaw] = viewer.mouseEventToCoords(e);
+      const coords = document.getElementById('coords');
+      coords.textContent = `pitch: ${pitch.toFixed(1)}, yaw: ${yaw.toFixed(1)}  (scène : ${viewer.getScene()})`;
+      coords.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
