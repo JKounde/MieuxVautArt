@@ -19,8 +19,9 @@ export const OEUVRES = [
   {
     id: "madame",
     titre: "Madame",
-    artiste: "Aurélie Ludivine Alias Madame", // ✏️ à compléter
-    annee: "2021", // ✏️ à compléter
+    artiste: "Aurélie Ludivine Alias Madame", 
+    annee: "2021",
+    site: 'https://www.madame.studio/',
     zone: "Salles de travail",
     x: 37,
     y: 30,
@@ -31,7 +32,7 @@ export const OEUVRES = [
       fr: "green.mp4", // pour le test, on réutilise le son de la vidéo
       // en: 'madame-en.mp3',
     },
-    video: "collectionneur.mp4",
+    video: "Madame.mp4",
     videoRA: "green.mp4",
     fondVert: true,
   },
