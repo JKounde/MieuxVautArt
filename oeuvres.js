@@ -32,7 +32,7 @@ export const OEUVRES = [
       fr: "green.mp4", // pour le test, on réutilise le son de la vidéo
       // en: 'madame-en.mp3',
     },
-    video: "Madame.mp4",
+    video: "madame.mp4",
     videoRA: "green.mp4",
     fondVert: true,
   },
