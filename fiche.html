@@ -14,7 +14,6 @@
      c'est le lien qui change (?oeuvre=madame, ?oeuvre=erell…), pas la page.
 -->
 <html lang="fr">
-
 <head>
   <meta charset="UTF-8">
   <!-- La page s'adapte à la largeur du téléphone -->
@@ -23,139 +22,48 @@
 
   <!-- ========================= CSS ========================= -->
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      background: #111;
-      color: #f5f5f5;
-    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #f5f5f5; }
 
     /* La colonne centrale : 560 px max, centrée */
-    main {
-      max-width: 560px;
-      margin: 0 auto;
-      padding: 20px 18px 48px;
-    }
+    main { max-width: 560px; margin: 0 auto; padding: 20px 18px 48px; }
 
     /* Le petit logo en haut */
-    .logo {
-      font-weight: 700;
-      color: #aaa;
-      font-size: .9rem;
-      margin-bottom: 16px;
-    }
-
-    .logo span {
-      color: #ff3d7f;
-    }
+    .logo { font-weight: 700; color: #aaa; font-size: .9rem; margin-bottom: 16px; }
+    .logo span { color: #ff3d7f; }
 
     /* La photo de l'œuvre prend toute la largeur */
-    img.oeuvre {
-      width: 100%;
-      border-radius: 14px;
-      display: block;
-    }
+    img.oeuvre { width: 100%; border-radius: 14px; display: block; }
 
-    h1 {
-      font-size: 1.7rem;
-      margin: 18px 0 4px;
-    }
-
-    .artiste {
-      color: #aaa;
-      margin: 0 0 20px;
-    }
+    h1 { font-size: 1.7rem; margin: 18px 0 4px; }
+    .artiste { color: #aaa; margin: 0 0 20px; }
 
     /* Les "cartes" grises (Écouter, Son histoire, Voir l'artiste) */
-    .bloc {
-      background: #1c1c1c;
-      border: 1px solid #2c2c2c;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-
-    .bloc h2 {
-      font-size: 1rem;
-      margin: 0 0 12px;
-    }
+    .bloc { background: #1c1c1c; border: 1px solid #2c2c2c; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .bloc h2 { font-size: 1rem; margin: 0 0 12px; }
 
     /* Les boutons de langue (Français / English), côte à côte */
-    .langues {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .langues button {
-      flex: 1;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid #444;
-      background: transparent;
-      color: #f5f5f5;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
+    .langues { display: flex; gap: 8px; margin-bottom: 12px; }
+    .langues button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #444;
+                      background: transparent; color: #f5f5f5; font-weight: 600; cursor: pointer; }
     /* La langue choisie est en rose */
-    .langues button.actif {
-      background: #ff3d7f;
-      border-color: #ff3d7f;
-    }
+    .langues button.actif { background: #ff3d7f; border-color: #ff3d7f; }
 
-    audio,
-    video {
-      width: 100%;
-      border-radius: 10px;
-    }
-
-    p.texte {
-      line-height: 1.55;
-      color: #ddd;
-      margin: 0;
-    }
+    audio, video { width: 100%; border-radius: 10px; }
+    p.texte { line-height: 1.55; color: #ddd; margin: 0; }
 
     /* Les gros boutons roses */
-    .btn {
-      display: block;
-      width: 100%;
-      text-align: center;
-      padding: 14px;
-      border: 0;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      background: #ff3d7f;
-      color: #fff;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
+    .btn { display: block; width: 100%; text-align: center; padding: 14px; border: 0; border-radius: 12px;
+           font-size: 1rem; font-weight: 700; background: #ff3d7f; color: #fff; text-decoration: none; cursor: pointer; }
     /* Variante : bouton avec seulement un contour */
-    .btn.secondaire {
-      background: transparent;
-      border: 1px solid #ff3d7f;
-      color: #ff3d7f;
-    }
+    .btn.secondaire { background: transparent; border: 1px solid #ff3d7f; color: #ff3d7f; }
 
     /* Classe pour cacher un élément */
-    .cache {
-      display: none;
-    }
+    .cache { display: none; }
 
-    .erreur {
-      color: #ffd166;
-      text-align: center;
-      margin-top: 40vh;
-    }
+    .erreur { color: #ffd166; text-align: center; margin-top: 40vh; }
   </style>
 </head>
-
 <body>
   <!-- ========================= HTML ========================= -->
   <!-- Une seule boîte VIDE : c'est le JavaScript qui va la remplir avec la fiche -->
@@ -213,10 +121,7 @@
       //   "si la condition est vraie, on met ce HTML, sinon rien"
       page.innerHTML = `
         <a class="logo" href="index.html" style="text-decoration:none;display:block;">← MieuxVaut<span>Art</span> · Toutes les œuvres</a>
-                ${o.site ? `
-        <section class="bloc">
-          <a class="btn secondaire" href="${o.site}" target="_blank" rel="noopener">🌐 Voir le site de l'artiste</a>
-        </section>` : ''}
+              
         ${o.image ? `<img class="oeuvre" src="${o.image}" alt="${o.titre}">` : ''}
         <h1>${o.titre}</h1>
         <p class="artiste">${[o.artiste, o.annee, o.zone].filter(Boolean).join(' · ')}</p>
@@ -237,11 +142,15 @@
 
         ${o.video ? `
         <section class="bloc">
-          <button class="btn secondaire" id="voirVideo">🎬 Voir l'artiste</button>
+          <button class="btn secondaire" id="voirVideo">Voir l'artiste</button>
           <video id="video" class="cache" controls playsinline src="${o.video}"></video>
         </section>` : ''}
+          ${o.site ? `
+        <section class="bloc">
+          <a class="btn secondaire" href="${o.site}" target="_blank" rel="noopener"> Voir le site de l'artiste</a>
+        </section>` : ''}
 
-        ${o.image && (o.videoRA || o.video) ? `<a class="btn" href="ra.html?oeuvre=${o.id}">✨ Voir en réalité augmentée</a>` : ''}
+        ${o.image && (o.videoRA || o.video) ? `<a class="btn" href="ra.html?oeuvre=${o.id}">Voir en réalité augmentée</a>` : ''}
       `;
       // ☝️ Le bouton RA (seulement si l'œuvre a une image et une vidéo) est un lien vers ra.html,
       //    avec le même identifiant (?oeuvre=madame) : la page RA saura quelle œuvre chercher.
@@ -284,5 +193,4 @@
     }
   </script>
 </body>
-
 </html>
